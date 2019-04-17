@@ -14,10 +14,9 @@ questions = {'conj': {'Q6': [0, 1],
              'Education' : 'Q5'}
 
 questions_options = {
-    'Q6' : {'qubits': {'0': 0,
-                       '1': 5,
-                       '01': 6}}
-}
+    'Q6' : {'0': 0,
+            '1': 5,
+            '01': 6}}
 
 ### todo: add which options in each questions are the important ones represent each of the qubits.
 
@@ -76,5 +75,9 @@ clms = raw_df.columns
 
 ### match option with which qubit and probability it is
 for q in fallacy_qs:
-    pass
+    q_dict = {}
+    for qubit, option in questions_options[q].items():
+        current_name = q + '_' + str(option)
+        new_name = q + '_' + 'q' + str(qubit)
+        q_dict[current_name] = new_name
 print()
