@@ -1,5 +1,7 @@
+from hamiltonian_prediction import *
 import datetime
 import pandas as pd
+import numpy as np
 
 ### questions organizer dictionary
 questions = {'conj': {'Q6': [0, 1],
@@ -8,76 +10,180 @@ questions = {'conj': {'Q6': [0, 1],
                       'Q16': [1, 2]},
              'disj':{'Q10': [0, 2],
                      'Q18': [1, 3]},
-             'trap': {'Q14': 2},
+             'trap': {'Q14': 1},
              'Gender': 'Q3',
              'Age' : 'Q4',
              'Education' : 'Q5'}
 
+### which options correspond to which qubits
 questions_options = {
     'Q6' : {'0': 0,
             '1': 5,
-            '01': 6}}
+            '01': 6},
+    'Q8': {'2': 0,
+           '3': 2,
+           '23': 3},
+    'Q10' : {'0': 1,
+            '2': 0,
+            '02': 4},
+    'Q12' : {'0': 3,
+            '3': 0,
+            '03': 5},
+    'Q16' : {'1': 2,
+            '2': 0,
+            '12': 4},
+    'Q18' : {'1': 0,
+            '3': 2,
+            '13': 5}
+}
 
-### todo: add which options in each questions are the important ones represent each of the qubits.
+def reformat_data_from_qualtrics(path):
+    '''reformat the data from qualtrics to cleaner dataframe'''
+    ### load the file
+    raw_df = pd.read_csv(path)
+    clms = raw_df.columns
+    raw_df = raw_df.iloc[2:]
 
+    ### clear users that fail the trap question
+    ###cchange the range from qualtrics to [0,6]
+    vd = dict(zip(np.sort(raw_df[list(questions['trap'].keys())[0]].astype('float').unique()), np.arange(6)))
+    raw_df[list(questions['trap'].keys())[0]] = raw_df[list(questions['trap'].keys())[0]].astype('float').replace(vd)
+    raw_df = raw_df[raw_df[list(questions['trap'].keys())[0]].astype('float') == list(questions['trap'].values())[0]]
 
-### load the file
-raw_df = pd.read_csv('Emma_and_Liz_april2019_no_slider_short.csv')
-clms = raw_df.columns
-raw_df = raw_df.iloc[2:]
+    ### order of the questions
+    ### choose the columns of the order
+    rand_qs = ['Q10', 'Q12', 'Q14', 'Q16', 'Q18']
+    rand_qs = [x + '_order' for x in rand_qs]
+    order_cls = raw_df[clms[clms.str.contains('FL_')]]
+    renaming_dict = dict(zip(order_cls, rand_qs))
+    raw_df.rename(columns=(renaming_dict), inplace=True)
 
-### clear users that fail the trap question
-raw_df = raw_df[raw_df[questions['trap'].keys()[0]].astype('float') == questions['trap'].values()[0]]
+    ### remove all the order of the options inside each question
+    clms = raw_df.columns
+    clms = clms[~clms.str.contains('_DO_')]
+    raw_df = raw_df[clms]
 
-### order of the questions
-### choose the columns of the order
-rand_qs = ['Q10', 'Q12', 'Q14', 'Q16', 'Q18']
-rand_qs = [x + '_order' for x in rand_qs]
-order_cls = raw_df[clms[clms.str.contains('FL_')]]
-renaming_dict = dict(zip(order_cls, rand_qs))
-raw_df.rename(columns=(renaming_dict), inplace=True)
+    # ### calculate all the aprameters and progpogate psi for the first 2 questions
+    # all_data, _ = calc_first_2_questions(raw_df)
 
-### remove all the order of the options inside each question
-clms = raw_df.columns
-clms = clms[~clms.str.contains('_DO_')]
-raw_df = raw_df[clms]
+    cnames = []
 
-# ### calculate all the aprameters and progpogate psi for the first 2 questions
-# all_data, _ = calc_first_2_questions(raw_df)
+    ### questions with fallacies
+    fallacy_qs = list(questions['conj'].keys()) + list(questions['disj'].keys())
+    id_qs = list(questions['trap'].keys()) + [questions['Gender']]+ [questions['Age']]+ [questions['Education']] + ['survey_code']
+    all_cls = fallacy_qs + id_qs
 
-cnames = []
+    ### subsample the columns that i need
+    for q in all_cls:
+        cnames = cnames + list(clms[clms.str.contains(q)])
 
-### questions with fallacies
-fallacy_qs = list(questions['conj'].keys()) + list(questions['disj'].keys())
-all_cls = fallacy_qs + list(questions['trap'].keys()) + [questions['Gender']]+ [questions['Age']]+ [questions['Education']] + ['survey_code']
+    raw_df = raw_df[cnames]
+    clms = raw_df.columns
 
-### subsample the columns that i need
-for q in all_cls:
-    cnames = cnames + list(clms[clms.str.contains(q)])
+    ### change options numbering
+    for q in fallacy_qs:
+        cc = clms[clms.str.contains(q)]
+        cc = cc[~cc.str.contains('order')]
 
-raw_df = raw_df[cnames]
-clms = raw_df.columns
+        a = cc.str.split('_', expand=True) ### current numbering
+        list(a.levels[1]).sort()
+        d = {}
+        for i, j in enumerate(a.levels[1]):
+            d[q+'_'+j] = q + '_' + str(i) ### new order
 
-### change options numbering
-for q in fallacy_qs:
-    cc = clms[clms.str.contains(q)]
-    cc = cc[~cc.str.contains('order')]
+        raw_df.rename(columns=(d), inplace=True)
 
-    a = cc.str.split('_', expand=True) ### current numbering
-    list(a.levels[1]).sort()
-    d = {}
-    for i, j in enumerate(a.levels[1]):
-        d[q+'_'+j] = q + '_' + str(i) ### new order
+    clms = raw_df.columns
 
-    raw_df.rename(columns=(d), inplace=True)
-
-clms = raw_df.columns
-
-### match option with which qubit and probability it is
-for q in fallacy_qs:
+    ### match option with which qubit and probability it is
     q_dict = {}
-    for qubit, option in questions_options[q].items():
-        current_name = q + '_' + str(option)
-        new_name = q + '_' + 'q' + str(qubit)
-        q_dict[current_name] = new_name
-print()
+    probs = ['pa','pb','pab']
+    for q in fallacy_qs:
+        for i, (qubit, option) in enumerate(questions_options[q].items()):
+            current_name = q + '_' + str(option)
+            new_name = q + '_' + 'q' + str(qubit)+ '_' + probs[i] + '_'
+            q_dict[current_name] = new_name
+
+    raw_df.rename(columns=(q_dict), inplace=True)
+
+    raw_df = raw_df[list(q_dict.values()) + id_qs + list(raw_df.columns[raw_df.columns.str.contains('order')])]
+
+    clms = raw_df.columns
+
+    # raw_df[list(q_dict.values())] = raw_df[list(q_dict.values())].astype('float') / 100 ### todo: uncomment for real data
+    raw_df[list(q_dict.values())] = np.random.random(raw_df[list(q_dict.values())].shape)
+
+    raw_df.to_csv('data/clear_df.csv', index = False)
+
+    return raw_df
+
+
+def calc_first_2_questions(df):
+    ### calculate all the parameters and psi for the first 2 questions
+
+    all_data = {}
+    for ui, u_id in enumerate(df['survey_code'].unique()):
+        # go over questions 1 & 2
+
+        ### init psi
+        psi_0 = uniform_psi(n_qubits=4)
+        sub_data = {
+            'h_q': {}
+        }
+        d0 = df[(df['survey_code'] == u_id)]
+        a = d0[d0.columns[d0.columns.str.contains('order')]]
+        for p_id, q in enumerate(list(questions['conj'].keys())[:2] [a.idxmin(axis = 1)[0]]):
+            d = d0.copy()
+            ### take the real probs of the user
+            d = d[d.columns[d.columns.str.contains(q)]]
+            p_real = {
+                'A': d[d.columns[d.columns.str.contains('pa_')]].values,
+                'B': d[d.columns[d.columns.str.contains('pb_')]].values,
+                'A_B': d[d.columns[d.columns.str.contains('pab_')]].values
+            }
+
+            ### which qubits in the questions
+            all_q = questions['conj'][q]
+
+            sub_data[p_id] = get_question_H(psi_0, all_q, p_real,with_mixing = True, h_mix_type=0)
+
+            psi_0 = sub_data[p_id]['psi']
+
+            sub_data['h_q'][str(all_q[0])] = sub_data[p_id]['h_a']
+            sub_data['h_q'][str(all_q[1])] = sub_data[p_id]['h_b']
+            sub_data['h_q'][str(all_q[0])+str(all_q[1])] = sub_data[p_id]['h_ab']
+
+        all_data[u_id] = sub_data
+        t1 = time.time()
+
+    ### save dict
+    # all_data = pd.DataFrame(all_data)
+    # all_data.to_csv('data/all_data_dict.csv', index = False)
+
+    np.save('data/all_data_dict.npy', all_data)
+
+    return all_data
+
+
+def main():
+    ### running the script
+    print('======= Started running at: %s =======' % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+    # reformat, calc_first2  = True, False
+    reformat, calc_first2  = False, True
+    # reformat, calc_first2  = False, False
+    ### First reformat the data from qualtrics
+    if reformat:
+        raw_df = reformat_data_from_qualtrics('data/Emma_and_Liz_april2019_no_slider_short.csv')
+    else:
+        raw_df = pd.read_csv('data/clear_df.csv')
+        ### calc the data of the first 2 questions
+        if calc_first2:
+            all_data = calc_first_2_questions(raw_df)
+        else:
+            all_data = np.load('data/all_data_dict.npy').item()
+
+    print('======= Finished running at: %s =======' % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+if __name__ == '__main__':
+    main()
