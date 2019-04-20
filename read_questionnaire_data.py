@@ -15,6 +15,11 @@ questions = {'conj': {'Q6': [0, 1],
              'Age' : 'Q4',
              'Education' : 'Q5'}
 
+questions_dal = {'Q10': 2,
+                 'Q18': 2,
+                 'Q12': 1,
+                 'Q16': 1}
+
 ### which options correspond to which qubits
 questions_options = {
     'Q6' : {'0': 0,
@@ -52,7 +57,7 @@ def reformat_data_from_qualtrics(path):
 
     ### order of the questions
     ### choose the columns of the order
-    rand_qs = ['Q10', 'Q12', 'Q14', 'Q16', 'Q18']
+    rand_qs = ['Q10', 'Q12', 'Q16', 'Q18']
     rand_qs = [x + '_order' for x in rand_qs]
     order_cls = raw_df[clms[clms.str.contains('FL_')]]
     renaming_dict = dict(zip(order_cls, rand_qs))
@@ -113,6 +118,12 @@ def reformat_data_from_qualtrics(path):
     # raw_df[list(q_dict.values())] = raw_df[list(q_dict.values())].astype('float') / 100 ### todo: uncomment for real data
     raw_df[list(q_dict.values())] = np.random.random(raw_df[list(q_dict.values())].shape)
 
+    ### which question was third
+    raw_df['q3'] = ''
+    for col in raw_df.columns[raw_df.columns.str.contains('order')]:
+        q = col.split('_')[0]  # questions
+        raw_df.loc[raw_df[col] == '1', 'q3'] = q
+
     raw_df.to_csv('data/clear_df.csv', index = False)
 
     return raw_df
@@ -131,21 +142,22 @@ def calc_first_2_questions(df):
             'h_q': {}
         }
         d0 = df[(df['survey_code'] == u_id)]
-        a = d0[d0.columns[d0.columns.str.contains('order')]]
-        for p_id, q in enumerate(list(questions['conj'].keys())[:2] [a.idxmin(axis = 1)[0]]):
+        a = d0[d0.columns[d0.columns.str.contains('order')]].reset_index(drop=True) ### which columns were randomized --> to take only the one that was second
+        for p_id, q in enumerate(list(questions['conj'].keys())[:2] + [a.idxmin(axis = 1)[0].split('_')[0]]):
+            print(u_id, p_id, q)
             d = d0.copy()
             ### take the real probs of the user
-            d = d[d.columns[d.columns.str.contains(q)]]
+            d = d[d.columns[d.columns.str.contains(q)]].reset_index(drop=True)
             p_real = {
                 'A': d[d.columns[d.columns.str.contains('pa_')]].values,
                 'B': d[d.columns[d.columns.str.contains('pb_')]].values,
                 'A_B': d[d.columns[d.columns.str.contains('pab_')]].values
             }
 
-            ### which qubits in the questions
-            all_q = questions['conj'][q]
+            ### is the third question is conj/ disj
+            all_q, fal = q_qubits_fal(q)
 
-            sub_data[p_id] = get_question_H(psi_0, all_q, p_real,with_mixing = True, h_mix_type=0)
+            sub_data[p_id] = get_question_H(psi_0, all_q, p_real,with_mixing = True, h_mix_type=0, fallacy_type=fal)
 
             psi_0 = sub_data[p_id]['psi']
 
@@ -164,6 +176,14 @@ def calc_first_2_questions(df):
 
     return all_data
 
+def q_qubits_fal(q):
+    if q in list(questions['conj'].keys()):
+        all_q = questions['conj'][q]
+        fal = 'C'
+    elif q in list(questions['disj'].keys()):
+        all_q = questions['disj'][q]
+        fal = 'D'
+    return all_q, fal
 
 def main():
     ### running the script
