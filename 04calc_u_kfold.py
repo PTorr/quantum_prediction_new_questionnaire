@@ -41,11 +41,17 @@ def sub_sample_data(all_data, data_qn, df, users):
 def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral=False, h_mix_type=0):
     '''cross validation only for the third question'''
 
-    control_str = '_U_%s_mixing_%s_neutral_%s_mix_type_%d' % (use_U, with_mixing, use_neutral, h_mix_type)
-
     ### load the dataframe containing all the data
     raw_df = pd.read_csv('data/clear_df.csv')
     raw_df.rename({'survey_code':'userID'},axis = 1, inplace=True)
+
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df = pd.concat([raw_df,raw_df])
+    raw_df.reset_index(drop=True, inplace=True)
 
     ### loading all the dat of the firs 3 questions
     all_data = np.load('data/all_data_dict.npy').item()
@@ -59,11 +65,10 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
     ### creating a dataframe to save all the predictions error --> for specific question group by 'qn' --> agg('mean')
     prediction_errors = pd.DataFrame()
 
+    q_info = {}
     ### Run on all users that have the same third question.
     for qn, user_list in user_same_q_list.items():
         all_q, fal = q_qubits_fal(qn)
-
-
         # go over all 4 types of questions
 
         ### split the users to test and train using kfold - each user will be one time in test
@@ -71,7 +76,7 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
         kf.get_n_splits(user_list)
 
         for i, (train_index, test_index) in enumerate(kf.split(user_list)):
-            q_info = {}
+            q_info[qn] = {}
             train_users, test_users = user_list[train_index], user_list[test_index]
             train_q_data_qn = {}
             test_q_data_qn = {}
@@ -373,8 +378,8 @@ def main():
     with_mixing_l = [True]
     comb = product(h_type, use_U_l, use_neutral_l, with_mixing_l)
 
-    # calcU = True
-    calcU = False
+    calcU = True
+    # calcU = False
 
     ### How many times to repeat the cross validation
     num_of_repeats = 10
@@ -384,7 +389,6 @@ def main():
 
             print('Running:\tUse_U = {} |\tUse_Neutral = {} |\tWith_Mixing = {} |\th_mix_type = {}'.format(use_U,use_neutral,with_mixing, h_mix_type))
 
-            control_str = 'pred_df_U_%s_mixing_%s_neutral_%s_mix_type_%d.csv' % (use_U, with_mixing, use_neutral, h_mix_type)
             # if os.path.isfile('./data/' + control_str):
             #     print('Already calculated everything for this combination')
             #     continue
