@@ -115,8 +115,8 @@ def reformat_data_from_qualtrics(path):
 
     clms = raw_df.columns
 
-    # raw_df[list(q_dict.values())] = raw_df[list(q_dict.values())].astype('float') / 100 ### todo: uncomment for real data
-    raw_df[list(q_dict.values())] = np.random.random(raw_df[list(q_dict.values())].shape)
+    raw_df[list(q_dict.values())] = raw_df[list(q_dict.values())].astype('float') / 100 ### todo: uncomment for real data
+    # raw_df[list(q_dict.values())] = np.random.random(raw_df[list(q_dict.values())].shape)
 
     ### which question was third
     raw_df['q3'] = ''
@@ -144,7 +144,7 @@ def calc_first_2_questions(df):
         d0 = df[(df['survey_code'] == u_id)]
         a = d0[d0.columns[d0.columns.str.contains('order')]].reset_index(drop=True) ### which columns were randomized --> to take only the one that was second
         for p_id, q in enumerate(list(questions['conj'].keys())[:2] + [a.idxmin(axis = 1)[0].split('_')[0]]):
-            print(u_id, p_id, q)
+            print(ui, p_id, q)
             d = d0.copy()
             ### take the real probs of the user
             d = d[d.columns[d.columns.str.contains(q)]].reset_index(drop=True)
@@ -194,7 +194,7 @@ def main():
     # reformat, calc_first2  = False, False
     ### First reformat the data from qualtrics
     if reformat:
-        raw_df = reformat_data_from_qualtrics('data/Emma_and_Liz_april2019_no_slider_short.csv')
+        raw_df = reformat_data_from_qualtrics('data/Emma_and_Liz_april2019_no_slider_short_20190422.csv')
     else:
         raw_df = pd.read_csv('data/clear_df.csv')
         ### calc the data of the first 2 questions

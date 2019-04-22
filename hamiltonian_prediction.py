@@ -23,7 +23,7 @@ h_names_gen = ['0', '1', '2', '3', '01', '23']
 h_names_letter = ['A', 'B', 'C', 'D', 'AB', 'CD', 'pred']
 
 def sub_q_p(df, u_id, p_id):
-    d = df[(df['survey_code'] == u_id)]
+    d = df[(df['userID'] == u_id)]
     q = d['q3'].values[0]
     d = d[d.columns[d.columns.str.contains(q)]].reset_index(drop=True)
 

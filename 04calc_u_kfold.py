@@ -13,7 +13,7 @@ from scipy import stats
 
 # psi_dyn = np.dot(U, psi_0)
 
-qubits_dict = {1:'a', 2:'b', 3:'c', 4:'d'}
+qubits_dict = {0:'a', 1:'b', 2:'c', 3:'d'}
 fal_dict = {1:'C', 2: 'D'}
 
 def get_general_p_without_h_trial(all_q, which_prob, psi, n_qubits=4, is_normalized = False):
@@ -44,13 +44,6 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
     ### load the dataframe containing all the data
     raw_df = pd.read_csv('data/clear_df.csv')
     raw_df.rename({'survey_code':'userID'},axis = 1, inplace=True)
-
-    raw_df = pd.concat([raw_df,raw_df])
-    raw_df = pd.concat([raw_df,raw_df])
-    raw_df = pd.concat([raw_df,raw_df])
-    raw_df = pd.concat([raw_df,raw_df])
-    raw_df = pd.concat([raw_df,raw_df])
-    raw_df = pd.concat([raw_df,raw_df])
     raw_df.reset_index(drop=True, inplace=True)
 
     ### loading all the dat of the firs 3 questions
@@ -68,6 +61,8 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
     q_info = {}
     ### Run on all users that have the same third question.
     for qn, user_list in user_same_q_list.items():
+        # user_list = list(user_list)
+        user_list = np.array(user_list)
         all_q, fal = q_qubits_fal(qn)
         # go over all 4 types of questions
 
@@ -102,7 +97,7 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
 
                 # find U for each question #
                 start = time.clock()
-                print('calculating U for %d on train data' % qn)
+                print('calculating U for %s on train data' % qn)
 
                 ### set bounds to all parameters
                 bounds = np.ones([10, 2])
@@ -111,7 +106,7 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 res_temp = general_minimize(fun_to_minimize_grandH, args_=(all_q, train_q_data_qn, h_mix_type, fal),
                                             x_0=np.zeros([10]), method='L-BFGS-B', bounds = bounds)
                 end = time.clock()
-                print('question %d, U optimization took %.2f s' % (qn, end - start))
+                print('question %s, U optimization took %.2f s' % (qn, end - start))
 
                 q_info[qn]['U'] = U_from_H(grandH_from_x(res_temp.x, fal))
 
@@ -146,7 +141,7 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 print('calculating h_ij' + mtd)
                 est = pred_h_ij(df_H, method = mtd)
                 end = time.clock()
-                print('question %d, h_ij prediction took %.2f s' % (qn, end - start))
+                print('question %s, h_ij prediction took %.2f s' % (qn, end - start))
 
                 q_info[qn]['H_ols'] = est
 
@@ -158,8 +153,8 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 temp['id'] = [u_id]
                 temp['qn'] = [qn]
 
-                temp['q1'] = [q_info[qn]['q1'][0]]
-                temp['q2'] = [q_info[qn]['q2'][0]]
+                temp['q1'] = [all_q[0]]
+                temp['q2'] = [all_q[1]]
 
                 q1 = 'p_' + qubits_dict[temp['q1'][0]]
                 q2 = 'p_' + qubits_dict[temp['q2'][0]]
@@ -190,8 +185,8 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
 
                 ### predicted probabilities with U
                 # full_h = [tu['h_q'][str(int(temp['q1'][0]) - 1)], tu['h_q'][str(int(temp['q2'][0]) - 1)], None]
-                h_a = [tu['h_q'][str(int(temp['q1'][0]) - 1)], None, None]
-                h_b = [None, tu['h_q'][str(int(temp['q2'][0]) - 1)], None]
+                h_a = [tu['h_q'][str(int(temp['q1'][0]))], None, None]
+                h_b = [None, tu['h_q'][str(int(temp['q2'][0]))], None]
                 temp['p_a_pred_U'] = [get_general_p(h_a, all_q, '0', psi_dyn, n_qubits=4).flatten()[0]]
                 temp['p_b_pred_U'] = [get_general_p(h_b, all_q, '1', psi_dyn, n_qubits=4).flatten()[0]]
 
@@ -235,7 +230,7 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 else:
                     h_ab = 0.0
 
-                full_h = [tu['h_q'][str(int(temp['q1'][0]) - 1)], tu['h_q'][str(int(temp['q2'][0]) - 1)], h_ab]
+                full_h = [tu['h_q'][str(int(temp['q1'][0]))], tu['h_q'][str(int(temp['q2'][0]))], h_ab]
                 temp['p_ab_ols']    = [get_general_p(full_h, all_q, fal, psi_dyn, n_qubits=4).flatten()[0]]
                 temp['p_ab_eye'] = [get_general_p(full_h, all_q, fal, psi_0, n_qubits=4).flatten()[0]]
 
@@ -265,6 +260,7 @@ def plot_errors(df):
 
     ### melt the data frame to: qn, err_type, err_value
     df2 = pd.melt(df1, id_vars=['qn'], value_vars=err_cl, var_name='err_type', value_name='err_value')
+    df2['err_value'] = pd.to_numeric(df2['err_value'].apply(lambda x: x.replace('[', '').replace(']', '')))
 
     ### boxplot of err to qn by err_type
     g = sns.factorplot(x="qn", hue='err_type', y="err_value", data=df2, kind="box", size=4, aspect=2)
@@ -291,9 +287,9 @@ def plot_errors(df):
     ### group per probability a/b per question.
     gg1 = df3.groupby(['prob','qn'])
     ### run on all combinations of prob and q.
-    for p, q in product((0,1),(2,3,4,5)):
+    for p, q in product(list(df3['prob'].unique()),list(df3['qn'].unique())):
         gg.get_group(p).to_csv('data/calc_U/00pred_err_per_prob_%d.csv' % p)
-        gg1.get_group((p, q)).to_csv('data/calc_U/00pred_err_per_prob_%d_per_qn_%d.csv' %(p,q))
+        gg1.get_group((p, q)).to_csv('data/calc_U/00pred_err_per_prob_%d_per_qn_%s.csv' %(p,q))
 
     g2 = sns.factorplot(x="err_type", y="err_value", data=df3, kind="box", size=4, aspect=2)
     g2.set_xticklabels(rotation=45)
@@ -378,11 +374,10 @@ def main():
     with_mixing_l = [True]
     comb = product(h_type, use_U_l, use_neutral_l, with_mixing_l)
 
-    calcU = True
-    # calcU = False
+    # calcU = True
+    calcU = False
 
     ### How many times to repeat the cross validation
-    num_of_repeats = 10
     if calcU:
 
         for h_mix_type, use_U, use_neutral, with_mixing in comb:
@@ -407,23 +402,23 @@ def main():
 
             plot_errors(prediction_errors)
 
-            ### plot real probs vs. predicted probs
-            for p in ['a', 'b']: #, 'ab'
-                df = prediction_errors[prediction_errors.columns[prediction_errors.columns.str.contains('p_%s_'%p)]]
-                g = sns.PairGrid(df)
-                g.map(my_plot)
+            # ### plot real probs vs. predicted probs
+            # for p in ['a', 'b']: #, 'ab'
+            #     df = prediction_errors[prediction_errors.columns[prediction_errors.columns.str.contains('p_%s_'%p)]]
+            #     g = sns.PairGrid(df)
+            #     g.map(my_plot)
 
-            ### look at the behavior of the parameters of U.
-            df_hs_u, df_hs_u_melted = h_u()
-            ### plot {h} params of U per question for 10 kfolds
-            qns = df_hs_u_melted['qn'].unique()
-            s1 = ''
-            for i in qns:
-                s = df_hs_u_melted[df_hs_u_melted['qn'] == i][['qn', 'fal', 'q1', 'q2']][-1:].values.flatten()
-                s1 = s1 + 'qn = %d, fal = %d, q1,q2 = %d, %d \n' % (s[0], s[1], s[2], s[3])
-            print(s1)
-            g = sns.factorplot(x="qn", hue='h', y="h_value", data=df_hs_u_melted, kind="box", size=4, aspect=2)
-            g = sns.factorplot(x="h", hue='qn', y="h_value", data=df_hs_u_melted, kind="box", size=4, aspect=2)
+            # ### look at the behavior of the parameters of U.
+            # df_hs_u, df_hs_u_melted = h_u()
+            # ### plot {h} params of U per question for 10 kfolds
+            # qns = df_hs_u_melted['qn'].unique()
+            # s1 = ''
+            # for i in qns:
+            #     s = df_hs_u_melted[df_hs_u_melted['qn'] == i][['qn', 'fal', 'q1', 'q2']][-1:].values.flatten()
+            #     s1 = s1 + 'qn = %d, fal = %d, q1,q2 = %d, %d \n' % (s[0], s[1], s[2], s[3])
+            # print(s1)
+            # g = sns.factorplot(x="qn", hue='h', y="h_value", data=df_hs_u_melted, kind="box", size=4, aspect=2)
+            # g = sns.factorplot(x="h", hue='qn', y="h_value", data=df_hs_u_melted, kind="box", size=4, aspect=2)
 
             plt.show()
 
