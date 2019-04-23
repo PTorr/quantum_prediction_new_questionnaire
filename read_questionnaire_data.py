@@ -2,6 +2,7 @@ from hamiltonian_prediction import *
 import datetime
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 ### questions organizer dictionary
 questions = {'conj': {'Q6': [0, 1],
@@ -185,13 +186,64 @@ def q_qubits_fal(q):
         fal = 'D'
     return all_q, fal
 
+def calc_irr(raw_df):
+    '''calculate the fallacy rates per question per type'''
+    irr_dict = {}
+    for q in list(questions['conj'].keys()):
+        qc = raw_df.columns[raw_df.columns.str.contains(q)]
+        a = raw_df[qc[qc.str.contains('pab_')].values[0]] - raw_df[[qc[qc.str.contains('pb_')].values[0], qc[qc.str.contains('pa_')].values[0]]].min(axis=1)
+        irr_dict[q + '_sc'] = a[a > 0].__len__() / raw_df.shape[0]
+        b = raw_df[qc[qc.str.contains('pab_')].values[0]] - raw_df[[qc[qc.str.contains('pb_')].values[0], qc[qc.str.contains('pa_')].values[0]]].max(axis=1)
+        irr_dict[q + '_dc'] = b[b > 0].__len__() / raw_df.shape[0]
+        irr_dict[q + '_rat'] = a[a <= 0].__len__() / raw_df.shape[0]
+
+    for q in list(questions['disj'].keys()):
+        qc = raw_df.columns[raw_df.columns.str.contains(q)]
+        a = raw_df[[qc[qc.str.contains('pb_')].values[0], qc[qc.str.contains('pa_')].values[0]]].max(axis=1) - raw_df[qc[qc.str.contains('pab_')].values[0]]
+        irr_dict[q + '_sd'] = a[a > 0].__len__() / raw_df.shape[0]
+        b = raw_df[[qc[qc.str.contains('pb_')].values[0], qc[qc.str.contains('pa_')].values[0]]].min(axis=1) - raw_df[qc[qc.str.contains('pab_')].values[0]]
+        irr_dict[q + '_dd'] = b[b > 0].__len__() / raw_df.shape[0]
+        irr_dict[q + '_rat'] = a[a <= 0].__len__() / raw_df.shape[0]
+
+    a = pd.DataFrame(irr_dict, index=[0])
+    b = pd.melt(a, value_vars=a.columns, value_name='rate', var_name='question')
+    b[['question', 'fal']] = b['question'].str.split('_', expand=True)
+    irr_df = b[['question','fal','rate']]
+    irr_df.to_csv('data/fal_rate.csv')
+
+    return irr_df
+
+def prob_dist(raw_df):
+    '''plot prob distributions per question'''
+    fallacy_qs = list(questions['conj'].keys()) + list(questions['disj'].keys())
+
+    ### the columns we need
+    clms = raw_df.columns
+    cc1 = []
+    for q in fallacy_qs:
+        cc = clms[clms.str.contains(q)]
+        cc1 = cc1 + list(cc[~cc.str.contains('order')])
+
+    df = raw_df[cc1]
+    a = pd.melt(df, value_vars=df.columns, value_name='prob', var_name='q_prob')
+    a = a.drop(index=a[a['prob'] < 0].index)
+    ### plot prob dist
+    g = sns.factorplot(data=a, x='prob', y='q_prob', kind="box", size=4, aspect=1)
+    # g = sns.factorplot(data=a, x='q_prob', y='prob', kind="box", size=4, aspect=2)
+    g.set_xticklabels(rotation=90)
+    g.savefig('data/probs_dist.png')
+
+
+    return a
+
+
 def main():
     ### running the script
     print('======= Started running at: %s =======' % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
     # reformat, calc_first2  = True, False
-    reformat, calc_first2  = False, True
-    # reformat, calc_first2  = False, False
+    # reformat, calc_first2  = False, True
+    reformat, calc_first2  = False, False
     ### First reformat the data from qualtrics
     if reformat:
         raw_df = reformat_data_from_qualtrics('data/Emma_and_Liz_april2019_no_slider_short_20190422.csv')
@@ -203,6 +255,12 @@ def main():
         else:
             all_data = np.load('data/all_data_dict.npy').item()
 
+        ### calculate fallacy rates
+        calc_irr(raw_df)
+
+        ### plot prob dist
+        prob_dist(raw_df)
+    plt.show()
     print('======= Finished running at: %s =======' % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 
 if __name__ == '__main__':

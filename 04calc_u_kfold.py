@@ -103,8 +103,12 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 bounds = np.ones([10, 2])
                 bounds[:, 1] = -1
 
+                # res_temp = general_minimize(fun_to_minimize_grandH, args_=(all_q, train_q_data_qn, h_mix_type, fal),
+                #                             x_0=np.zeros([10]), method='L-BFGS-B', bounds = bounds)
+
                 res_temp = general_minimize(fun_to_minimize_grandH, args_=(all_q, train_q_data_qn, h_mix_type, fal),
-                                            x_0=np.zeros([10]), method='L-BFGS-B', bounds = bounds)
+                                            x_0=np.zeros([10]), method='Powell')
+
                 end = time.clock()
                 print('question %s, U optimization took %.2f s' % (qn, end - start))
 
@@ -374,8 +378,8 @@ def main():
     with_mixing_l = [True]
     comb = product(h_type, use_U_l, use_neutral_l, with_mixing_l)
 
-    # calcU = True
-    calcU = False
+    calcU = True
+    # calcU = False
 
     ### How many times to repeat the cross validation
     if calcU:
