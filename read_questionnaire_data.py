@@ -249,17 +249,20 @@ def main():
         raw_df = reformat_data_from_qualtrics('data/Emma_and_Liz_april2019_no_slider_short_20190422.csv')
     else:
         raw_df = pd.read_csv('data/clear_df.csv')
-        ### calc the data of the first 2 questions
-        if calc_first2:
-            all_data = calc_first_2_questions(raw_df)
-        else:
-            all_data = np.load('data/all_data_dict.npy').item()
 
         ### calculate fallacy rates
         calc_irr(raw_df)
 
         ### plot prob dist
         prob_dist(raw_df)
+
+        ### calc the data of the first 2 questions
+        if calc_first2:
+            all_data = calc_first_2_questions(raw_df)
+        else:
+            all_data = np.load('data/all_data_dict.npy').item()
+
+
     plt.show()
     print('======= Finished running at: %s =======' % datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
 

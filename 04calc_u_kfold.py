@@ -402,8 +402,6 @@ def main():
         for h_mix_type, use_U, use_neutral, with_mixing in comb:
             prediction_errors = pd.read_csv('data/calc_U/kfold_prediction_errors.csv')
 
-            # prediction_errors = average_results(h_mix_type, use_U, use_neutral, with_mixing, num_of_repeats)
-
             plot_errors(prediction_errors)
 
             # ### plot real probs vs. predicted probs
