@@ -227,6 +227,10 @@ def prob_dist(raw_df):
     df = raw_df[cc1]
     a = pd.melt(df, value_vars=df.columns, value_name='prob', var_name='q_prob')
     a = a.drop(index=a[a['prob'] < 0].index)
+
+    ### decriptive table
+    # a.groupby('q_prob').describe()
+
     ### plot prob dist
     g = sns.factorplot(data=a, x='prob', y='q_prob', kind="box", size=4, aspect=1)
     # g = sns.factorplot(data=a, x='q_prob', y='prob', kind="box", size=4, aspect=2)
