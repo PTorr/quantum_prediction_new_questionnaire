@@ -207,6 +207,10 @@ def calculate_all_data_cross_val_kfold(use_U=True, with_mixing=True, use_neutral
                 temp['p_b_err_real_U'] = [np.abs(temp['p_b_real'][0] - temp['p_b_pred_U'][0])]
 
                 ### calculate the error from the full 4 qubits state with I
+                print('pred_I = ', temp['p_a_pred_I'][0])
+                print('pred_U = ', temp['p_a_pred_U'][0])
+                print('real = ', temp['p_a_real'][0])
+
                 temp['p_a_err_real_I'] = [np.abs(temp['p_a_real'][0] - temp['p_a_pred_I'][0])]
                 temp['p_b_err_real_I'] = [np.abs(temp['p_b_real'][0] - temp['p_b_pred_I'][0])]
 
@@ -378,8 +382,8 @@ def main():
     with_mixing_l = [True]
     comb = product(h_type, use_U_l, use_neutral_l, with_mixing_l)
 
-    calcU = True
-    # calcU = False
+    # calcU = True
+    calcU = False
 
     ### How many times to repeat the cross validation
     if calcU:
@@ -400,6 +404,7 @@ def main():
     else:
         i = 0
         for h_mix_type, use_U, use_neutral, with_mixing in comb:
+            # prediction_errors = pd.read_csv('data/calc_U_unbounded/kfold_prediction_errors.csv')
             prediction_errors = pd.read_csv('data/calc_U/kfold_prediction_errors.csv')
 
             plot_errors(prediction_errors)
